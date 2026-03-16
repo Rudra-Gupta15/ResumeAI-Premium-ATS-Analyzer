@@ -292,7 +292,8 @@ const LEVELS = [
     name: "Beginner",
     years: "< 1 year",
     desc: "Just starting out — scored on formatting, clarity, education & skills presentation",
-    criteria: "under 1 year of experience — evaluate based on formatting, education quality, skills presentation, clarity and potential. Be encouraging but honest."
+    criteria: "under 1 year of experience — evaluate based on formatting, education quality, skills presentation, clarity and potential. Be encouraging but honest.",
+    scoringRules: "SCORING ETHOS: BE GENEROUS AND ENCOURAGING. Beginners often have less experience, so focus on high-quality presentation, education, and skills. A score of 70-80 is appropriate for a well-organized beginner resume. Don't punish for lack of years if the quality is high."
   },
   {
     id: "intermediate",
@@ -300,7 +301,8 @@ const LEVELS = [
     name: "Intermediate",
     years: "1 – 5 years",
     desc: "Growing professional — scored on impact, quantified results & relevant experience",
-    criteria: "1 to 5 years of experience — evaluate based on quantified achievements, project impact, skill relevance, experience descriptions and career progression."
+    criteria: "1 to 5 years of experience — evaluate based on quantified achievements, project impact, skill relevance, experience descriptions and career progression.",
+    scoringRules: "SCORING ETHOS: BE STRICT. Demand quantified impact (numbers, %, $). A score of 60-70 is NORMAL for a solid intermediate resume. Only give 80+ for truly exceptional achievement and clear career growth."
   },
   {
     id: "advanced",
@@ -308,7 +310,8 @@ const LEVELS = [
     name: "Advanced",
     years: "5+ years",
     desc: "Senior professional — scored on leadership, architecture decisions & measurable impact",
-    criteria: "5+ years of experience — evaluate based on leadership, strategic impact, domain expertise, measurable results, certifications and seniority signals."
+    criteria: "5+ years of experience — evaluate based on leadership, strategic impact, domain expertise, measurable results, certifications and seniority signals.",
+    scoringRules: "SCORING ETHOS: BE HARDEST AND MOST CRITICAL. Demand leadership, architecture decisions, strategic impact, and massive measurable results. A score of 50-60 is NORMAL for a senior resume. 80+ is extremely rare and only for industry leaders or world-class experts."
   }
 ];
 
@@ -593,14 +596,12 @@ JSON only:`;
 
 The candidate is targeting the role: "${finalDomain}"
 Experience level: ${levelConf.criteria}
+LEVEL-SPECIFIC SCORING: ${levelConf.scoringRules}
 
 CRITICAL SCORING RULES - BE REALISTIC AND HONEST:
-- Don't inflate scores - be brutally honest about what's missing
-- A score of 40-60 is NORMAL for early-career candidates
-- Only give 80+ if the section is genuinely impressive for the target role
-- If a section is weak or generic, give it 30-50
-- If a section is completely missing, give it 0
-- Compare against REAL job requirements for "${finalDomain}" roles
+- Don't inflate scores unless the level-specific rules above suggest otherwise.
+- Strictly follow the SCORING ETHOS provided for the candidate's level.
+- Compare against REAL job requirements for "${finalDomain}" roles at the candidate's experience level.
 
 SCORING GUIDELINES BY SECTION:
 - **Skills**: Score based on relevance to ${finalDomain}. Generic skills = low score. Role-specific tools/frameworks = high score.

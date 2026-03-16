@@ -2,8 +2,6 @@
 
 An AI-powered ATS (Applicant Tracking System) resume analyzer that provides instant scoring, domain-specific feedback, cross-functional career insights, and actionable project suggestions using LLMs.
 
-![ResumeAI Hero](hero.png)
-
 ## ✨ Features
 
 ### Core Analysis

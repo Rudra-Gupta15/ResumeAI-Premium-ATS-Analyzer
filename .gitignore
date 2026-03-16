@@ -1,0 +1,30 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / Editor
+.vscode/
+.idea/
+*.log
+*.swp
+*.swo
+
+# Sensitive / Environment
+.env
+.env.*
+env.txt
+*.env
+
+# Dependencies
+node_modules/
+
+# Vercel
+.vercel/
+
+# Build output
+dist/
+build/
+
+# Backup files
+hero_original_backup.png

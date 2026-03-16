@@ -52,12 +52,13 @@ async function extractTextFromFile(file, setLoadMsg) {
 
 /* ── Groq helpers ───────────────────────────────────────────── */
 async function callGroq(prompt, apiKey) {
-  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const url = apiKey ? "https://api.groq.com/openai/v1/chat/completions" : "/api/analyze";
+  const headers = { "Content-Type": "application/json" };
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+  const r = await fetch(url, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [{ role: "user", content: prompt }]
@@ -79,12 +80,13 @@ async function callGroq(prompt, apiKey) {
 }
 
 async function streamGroq(prompt, onToken, apiKey) {
-  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const url = apiKey ? "https://api.groq.com/openai/v1/chat/completions" : "/api/analyze";
+  const headers = { "Content-Type": "application/json" };
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+  const r = await fetch(url, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [{ role: "user", content: prompt }],
@@ -435,7 +437,7 @@ function App() {
   
   /* Update isUsingDefaultKey when groqKey changes */
   useEffect(() => {
-    setIsUsingDefaultKey(groqKey === DEFAULT_API_KEY);
+    setIsUsingDefaultKey(groqKey === DEFAULT_API_KEY && DEFAULT_API_KEY !== "");
   }, [groqKey]);
 
   /* File handling */

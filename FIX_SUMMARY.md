@@ -43,8 +43,10 @@ Your `env.txt` file contained the API key, but the browser couldn't access it.
 
 ## ✅ **The Fixes**
 
-### Fix #1: Removed Hardcoded API Key
-I modified `app.js` to remove the hardcoded API key. Users must now provide their own key via the UI or `localStorage`.
+### Fix #1: Secure Environment Variables (Vercel)
+The app now supports secure environment variables via a Vercel Proxy.
+1. **Local Use**: Enter your key in the UI or use the `env.txt` file (ignored by Git).
+2. **Deployed (Vercel)**: Add `GROQ_API_KEY` to your project's Environment Variables. The app will automatically use it securely via the `/api/analyze` bridge.
 
 **Before:**
 ```javascript

@@ -227,9 +227,25 @@ function Footer() {
 }
 
 /* ── Markdown Renderer ─────────────────────────────────────── */
-function MarkdownText({ text, streaming, active }) {
-  if (!text && !streaming) return null;
-  const lines = text ? text.split('\n') : [''];
+/* ── Markdown Renderer ─────────────────────────────────────── */
+function MarkdownText({ text, streaming, active, loading, type = "insights" }) {
+  if (loading && !text) {
+    return (
+      <div className="stream-loading" style={{ padding: '1rem 0' }}>
+         <div className="spin-sm"/> Generating {type}...
+      </div>
+    );
+  }
+  
+  if (!text && !streaming && !loading) {
+    return (
+      <div style={{ padding: '1rem 0', color: 'var(--text-dim)', fontSize: '13px', fontStyle: 'italic' }}>
+        No {type} generated for this section.
+      </div>
+    );
+  }
+
+  const lines = text ? text.split('\n') : [];
   
   return (
     <div className="review-text" style={{ whiteSpace: 'normal', minHeight: '40px' }}>
@@ -242,8 +258,9 @@ function MarkdownText({ text, streaming, active }) {
           return <h4 key={i} style={{ color: 'var(--text-main)', marginTop: i===0?'0.5rem':'1.5rem', marginBottom: '0.75rem', fontSize: '14px', letterSpacing: '0.05em', textTransform: 'uppercase', borderBottom: '1px solid var(--border-light)', paddingBottom: '4px' }}>{t.replace(/###\s*/, '')}</h4>;
         }
         if (t.startsWith('##')) {
-          // Hide orphaned ## PROJECT headers inside the content blocks since we have custom static headers
-          if (t.toUpperCase().includes('PROJECT')) return null;
+          // Hide orphaned ## headers inside the content blocks since we have custom static headers
+          const upper = t.toUpperCase();
+          if (upper.includes('PROJECT') || upper.includes('STRENGTH') || upper.includes('IMPROVEMENT')) return null;
           return <h3 key={i} style={{ color: 'var(--info)', marginTop: i===0?'0.5rem':'1.5rem', marginBottom: '1rem', fontSize: '16px' }}>{t.replace(/##\s*/, '')}</h3>;
         }
         
@@ -382,6 +399,7 @@ function App() {
   const [waitTime, setWaitTime]        = useState(0); // Seconds to wait before next analysis
   const [isUsingDefaultKey, setIsUsingDefaultKey] = useState(true);
   const [serverKeyAvailable, setServerKeyAvailable] = useState(false);
+  const [analyzing, setAnalyzing]      = useState(false);
 
   const fileRef = useRef();
   
@@ -476,11 +494,13 @@ function App() {
 
   /* ── Analyze ─────────────────────────────────────────────── */
   async function analyze() {
+    if (analyzing) return;
+    setAnalyzing(true);
     setError("");
     const hasInput = file || pasteText.trim().length > 50;
-    if (!hasInput) { setError("Please upload a resume or paste at least 50 characters of text."); return; }
-    if (processingMode === "offline" && !ollamaOk) { setError("Ollama is not running. Start it with: ollama serve"); return; }
-    if (processingMode === "offline" && !model) { setError("No model selected."); return; }
+    if (!hasInput) { setError("Please upload a resume or paste at least 50 characters of text."); setAnalyzing(false); return; }
+    if (processingMode === "offline" && !ollamaOk) { setError("Ollama is not running. Start it with: ollama serve"); setAnalyzing(false); return; }
+    if (processingMode === "offline" && !model) { setError("No model selected."); setAnalyzing(false); return; }
 
     setPage("loading");
     setLoadPct(5);
@@ -707,10 +727,10 @@ JSON only:`;
 
       /* Step 3 — Stream improvement review */
       setLoadMsg("Generating domain review and projects...");
-      setPage("analysis");
-      setActiveTab("domain"); // Auto-switch to domain tab to show streaming text
-      setStreaming(true);
       setReviewText("");
+      setStreaming(true);
+      setPage("analysis");
+      setActiveTab("domain");
 
       const reviewPrompt = `You are a professional resume coach specialized in "${finalDomain}". The candidate is targeting "${finalDomain}" and their experience level is ${levelConfig.criteria}.
 
@@ -810,10 +830,12 @@ JSON array only:`;
       }
       
       setLoadPct(100);
+      setAnalyzing(false);
 
     } catch (e) {
       setError(e.message);
       setPage("home");
+      setAnalyzing(false);
     }
   }
 
@@ -1140,12 +1162,12 @@ JSON array only:`;
               
               <button className="btn-analyze" style={{marginTop:"1rem"}}
                 onClick={analyze}
-                disabled={(processingMode === "offline" && (!ollamaOk || !model || checking)) || 
+                disabled={analyzing || (processingMode === "offline" && (!ollamaOk || !model || checking)) || 
                          (processingMode === "online" && ((onlineOption === "personal" && !groqKey) || (onlineOption === "developer" && waitTime > 0)))}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 {(onlineOption === "developer" && waitTime > 0 && processingMode === "online") 
                   ? `Wait ${waitTime}s to analyze` 
-                  : "Analyze Resume"}
+                  : (analyzing ? "Analyzing..." : "Analyze Resume")}
               </button>
               
               {processingMode === "online" && (
@@ -1446,18 +1468,18 @@ JSON array only:`;
                    <div style={{ display: activeTab === 'domain' ? 'block' : 'none' }}>
                      <div className="inner-card review-card">
                        <div className="divider-label" style={{marginBottom:"1rem"}}>
-                         🎯 candidate Strengths
+                         🎯 Candidate Strengths
                        </div>
                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: '1.5' }}>
                          What's in your resume that will help you in interviews:
                        </div>
-                       {strengthsText || streaming ? (
-                         <MarkdownText text={strengthsText} streaming={streaming} active={activeTab === 'domain'} />
-                       ) : (
-                         <div className="stream-loading">
-                            <div className="spin-sm"/> Gathering candidate insights...
-                         </div>
-                       )}
+                       <MarkdownText 
+                          text={strengthsText} 
+                          streaming={streaming} 
+                          loading={streaming && !strengthsText}
+                          active={activeTab === 'domain'} 
+                          type="strengths"
+                        />
                      </div>
                    </div>
                    

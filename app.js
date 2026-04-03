@@ -378,6 +378,7 @@ function App() {
   const [groqKey, setGroqKey]          = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [adjacentRoles, setAdjacentRoles] = useState([]);
+  const [loadingAbilities, setLoadingAbilities] = useState(false);
   const [waitTime, setWaitTime]        = useState(0); // Seconds to wait before next analysis
   const [isUsingDefaultKey, setIsUsingDefaultKey] = useState(true);
   const [serverKeyAvailable, setServerKeyAvailable] = useState(false);
@@ -570,6 +571,7 @@ Format:
 {
   "contact": { "name": "", "email": "", "phone": "", "location": "" },
   "links": { "github": "", "portfolio": "", "kaggle": "", "linkedin": "", "hackerrank": "" },
+  "total_experience_months": 0,
   "sections": {
     "summary": "",
     "skills": "",
@@ -583,6 +585,8 @@ Format:
 }
 
 Only include sections that exist. For "extracurricular", include any evidence of activities, participation, clubs, volunteering, or academic events.
+
+For "total_experience_months", provide an integer estimate of the candidate's total professional experience (summing all work experience and relevant internships durations).
 
 ### ROBUST LINK DETECTION RULE:
 In the header/contact zone, look for platform names (LinkedIn, GitHub, Kaggle, Hackerrank) or their icons/placeholders. 
@@ -628,17 +632,17 @@ PENALTY CHECKLIST (Apply these strictly):
 - No projects or experience shown: Overall score cannot exceed 40.
 
 SECTION-COUNT BENCHMARKS (Overall score depends on completeness):
-- 2 sections filled = 60+ (Base score)
-- 4 sections filled = 70+ (Strong profile)
-- 5+ sections filled = Near 80+ (Comprehensive profile)
-(Apply these provided the quality is maintained. A resume with 5 poor sections should still be penalized.)
+- 2 sections with high quality content = 65+ (Solid profile)
+- 3 sections with high quality content = 75+ (Strong profile)
+- 4+ sections with high quality content = 85+ (Exceptional profile)
+(Note: Valid work experience often covers the need for internships. Do not penalize if experience is strong.)
 
 SCORING GUIDELINES BY SECTION:
 - **Skills**: Score based on relevance to ${finalDomain}. Generic skills (MS Office) = low score. Role-specific tools = high score.
 - **Experience**: Score based on relevance and impact. Relevant roles with achievements = high score.
 - **Projects**: Score based on technical depth. "To-do app" = 30-40. Complex, unique apps = 70-90.
 - **Education**: Relevant degree = 75-85. Irrelevant degree = 45-55.
-- **Internship**: Relevant ones = 70-85. Otherwise 40-50.
+- **Internship**: Relevant ones = 70-85. If work experience is present, this section is OPTIONAL and should NOT penalize the overall score or be flagged as a critical issue.
 - **Certificate**: Credible industry certs = 70-90. Generic courses = 40-50.
 - **Extracurricular**: Be lenient. 1 item = 60, 2 items = 70, 3 items = 80, 4+ items = 90+. Always check quality; leadership roles or activities highly relevant to ${finalDomain} should receive a bonus.
 
@@ -660,7 +664,7 @@ Return ONLY valid JSON with ATS scores. No markdown.
     "experience": { "score": 50, "feedback": "Lacks quantified impact. Uses generic descriptions." },
     "education": { "score": 70, "feedback": "Relevant degree but missing honors/distinction." },
     "projects": { "score": 30, "feedback": "Only basic school assignments found." },
-    "internship": { "score": 0, "feedback": "Not found" },
+    "internship": { "score": 0, "feedback": "Not found (Optional if experienced)" },
     "certificate": { "score": 40, "feedback": "Only generic course completions found." },
     "extracurricular": { "score": 20, "feedback": "No relevant participation." }
   },
@@ -682,6 +686,22 @@ JSON only:`;
           : await callOllama(model, scorePrompt);
       const parsedScores = safeJSON(rawScores);
       if (!parsedScores) throw new Error("Failed to calculate scores. Try a different model.");
+
+      // Apply experience bonus based on user rules
+      const months = parseInt(parsed.total_experience_months) || 0;
+      let experienceBonus = 0;
+      if (months >= 36) experienceBonus = 10;
+      else if (months >= 24) experienceBonus = 7;
+      else if (months >= 12) experienceBonus = 5;
+      else if (months >= 6) experienceBonus = 3;
+
+      if (experienceBonus > 0) {
+        parsedScores.overall_score = Math.min(100, (parsedScores.overall_score || 0) + experienceBonus);
+        if (!parsedScores.strengths) parsedScores.strengths = [];
+        const yearsText = months >= 12 ? `${(months/12).toFixed(1)} years` : `${months} months`;
+        parsedScores.strengths.push(`Experience Bonus: +${experienceBonus} points for ${yearsText} of experience`);
+      }
+
       setScores(parsedScores);
       setLoadPct(80);
 
@@ -736,6 +756,7 @@ ${JSON.stringify(parsed.sections, null, 2).slice(0, 3000)}`;
       
       /* Step 4 — Generate Adjacent Roles */
       setLoadMsg("Identifying cross-functional abilities...");
+      setLoadingAbilities(true);
       const adjacentPrompt = `Analyze this resume and identify 3-5 alternative roles this person could work in (beyond their primary target of "${finalDomain}").
 
 For each role, provide:
@@ -781,6 +802,8 @@ JSON array only:`;
         console.error("Error details:", e.message);
         // Set empty array so UI shows that generation completed but found nothing
         setAdjacentRoles([]);
+      } finally {
+        setLoadingAbilities(false);
       }
       
       setLoadPct(100);
@@ -1378,46 +1401,41 @@ JSON array only:`;
 
             {/* TABS: Domain Review & Projects */}
             {(() => {
-               const pIndex = reviewText.toUpperCase().indexOf("## PROJECT"); // Catch 'PROJECT' or 'PROJECTS'
+               // Robust header detection using Regex for flexible matching
+               const projectRegex = /##\s*PROJECTS?/i;
+               const strengthsRegex = /##\s*INTERVIEW[_\s]*STRENGTHS?/i;
+               const improvementsRegex = /##\s*IMPROVEMENTS?/i;
+
+               const pMatch = reviewText.match(projectRegex);
+               const pIndex = pMatch ? pMatch.index : -1;
+
                let domainText = reviewText;
                let pText = "";
                if (pIndex !== -1) {
                  domainText = reviewText.substring(0, pIndex);
-                 pText = reviewText.substring(pIndex);
+                 pText = reviewText.substring(pIndex).replace(projectRegex, "").trim();
                }
                
-               // Split domain review into Interview Strengths and Improvements
-               const strengthsIndex = domainText.toUpperCase().indexOf("## INTERVIEW");
-               const improvementsIndex = domainText.toUpperCase().indexOf("## IMPROVEMENTS");
+               const sMatch = domainText.match(strengthsRegex);
+               const iMatch = domainText.match(improvementsRegex);
+
+               const strengthsIndex = sMatch ? sMatch.index : -1;
+               const improvementsIndex = iMatch ? iMatch.index : -1;
                
                let strengthsText = "";
                let improvementsText = "";
                
                if (strengthsIndex !== -1 && improvementsIndex !== -1) {
-                 strengthsText = domainText.substring(strengthsIndex, improvementsIndex);
-                 improvementsText = domainText.substring(improvementsIndex);
-                 
-                 // Clean headers from both sections - more aggressive cleanup
-                 strengthsText = strengthsText
-                   .replace(/##\s*INTERVIEW[_\s]*STRENGTHS?/gi, "")
-                   .replace(/^[\s\n]+/, "")
-                   .trim();
-                 
-                 improvementsText = improvementsText
-                   .replace(/##\s*IMPROVEMENTS?/gi, "")
-                   .replace(/^[\s\n]+/, "")
-                   .trim();
+                 strengthsText = domainText.substring(strengthsIndex, improvementsIndex).replace(strengthsRegex, "").trim();
+                 improvementsText = domainText.substring(improvementsIndex).replace(improvementsRegex, "").trim();
+               } else if (strengthsIndex !== -1) {
+                 strengthsText = domainText.substring(strengthsIndex).replace(strengthsRegex, "").trim();
+               } else if (improvementsIndex !== -1) {
+                 improvementsText = domainText.substring(improvementsIndex).replace(improvementsRegex, "").trim();
                } else {
-                 // Fallback if headers not found (old format or streaming)
-                 strengthsText = domainText
-                   .replace(/##\s*DOMAIN[_\s]*REVIEW/gi, "")
-                   .replace(/##\s*INTERVIEW[_\s]*STRENGTHS?/gi, "")
-                   .replace(/^[\s\n]+/, "")
-                   .trim();
+                 // No headers found yet, show everything in strengths as fallback
+                 strengthsText = domainText.trim();
                }
-               
-               // Clean project text
-               pText = pText.replace(/##\s*PROJECTS?/gi, "").replace(/^[\s\n]+/, "").trim();
 
                return (
                  <>
@@ -1538,23 +1556,23 @@ JSON array only:`;
                           fontSize: '13px',
                           lineHeight: '1.6'
                         }}>
-                          <div style={{ fontSize: '32px', marginBottom: '1rem', opacity: 0.5 }}>🔍</div>
-                          <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
-                            Analyzing Cross-Functional Abilities
-                          </div>
-                          <div>
-                            This may take a moment. Check the browser console (F12) for details if this persists.
-                          </div>
-                          <div style={{ 
-                            marginTop: '1rem', 
-                            padding: '12px',
-                            background: 'rgba(59,130,246,0.1)',
-                            border: '1px solid rgba(59,130,246,0.3)',
-                            borderRadius: 'var(--r-sm)',
-                            fontSize: '11px'
-                          }}>
-                            💡 Tip: Try analyzing again if no results appear after 10 seconds
-                          </div>
+                          {loadingAbilities ? (
+                            <>
+                              <div style={{ fontSize: '32px', marginBottom: '1rem', opacity: 0.5 }}>🔍</div>
+                              <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                                Analyzing Cross-Functional Abilities
+                              </div>
+                              <div>This may take a moment...</div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: '32px', marginBottom: '1rem', opacity: 0.5 }}>✅</div>
+                              <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                                Analysis Complete
+                              </div>
+                              <div>No alternative cross-functional roles were identified for this specific profile.</div>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

@@ -712,7 +712,7 @@ JSON only:`;
       setStreaming(true);
       setReviewText("");
 
-      const reviewPrompt = `You are a professional resume coach specialized in "${finalDomain}". The candidate is targeting "${finalDomain}" and their experience level is ${levelConf.criteria}.
+      const reviewPrompt = `You are a professional resume coach specialized in "${finalDomain}". The candidate is targeting "${finalDomain}" and their experience level is ${levelConfig.criteria}.
 
 Write a concise, actionable review tailored strictly to the target role. You MUST use these exact three headers to separate your response:
 
@@ -1446,7 +1446,7 @@ JSON array only:`;
                    <div style={{ display: activeTab === 'domain' ? 'block' : 'none' }}>
                      <div className="inner-card review-card">
                        <div className="divider-label" style={{marginBottom:"1rem"}}>
-                         🎯 Interview Strengths
+                         🎯 candidate Strengths
                        </div>
                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: '1.5' }}>
                          What's in your resume that will help you in interviews:

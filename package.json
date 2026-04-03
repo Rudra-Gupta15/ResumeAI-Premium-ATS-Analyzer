@@ -1,0 +1,21 @@
+{
+  "name": "resume-ai-analyzer",
+  "version": "1.0.0",
+  "description": "AI-powered ATS Resume Analyzer with section-by-section scoring, domain-specific feedback, and project suggestions. Powered by Groq (cloud) and Ollama (local).",
+  "author": "Rudra Gupta",
+  "license": "MIT",
+  "homepage": "https://github.com/RudraGupta/Resume-AI-analyzer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RudraGupta/Resume-AI-analyzer.git"
+  },
+  "keywords": [
+    "resume",
+    "ats",
+    "analyzer",
+    "ai",
+    "groq",
+    "ollama",
+    "react"
+  ]
+}

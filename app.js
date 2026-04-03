@@ -228,11 +228,11 @@ function Footer() {
 
 /* ── Markdown Renderer ─────────────────────────────────────── */
 function MarkdownText({ text, streaming, active }) {
-  if (!text) return null;
-  const lines = text.split('\n');
+  if (!text && !streaming) return null;
+  const lines = text ? text.split('\n') : [''];
   
   return (
-    <div className="review-text" style={{ whiteSpace: 'normal' }}>
+    <div className="review-text" style={{ whiteSpace: 'normal', minHeight: '40px' }}>
       {lines.map((line, i) => {
         const t = line.trim();
         if (!t) return <div key={i} style={{ height: '8px' }}/>;
@@ -746,13 +746,16 @@ Keep your response direct, practical, and highly specific to the resume provided
 RESUME:
 ${JSON.stringify(parsed.sections, null, 2).slice(0, 3000)}`;
 
-      if (processingMode === "online") {
-        await streamGroq(reviewPrompt, (text) => setReviewText(text), currentKey);
-      } else {
-        await streamOllama(model, reviewPrompt, (text) => setReviewText(text));
+      try {
+        if (processingMode === "online") {
+          await streamGroq(reviewPrompt, (text) => setReviewText(text), currentKey);
+        } else {
+          const rawReview = await callOllama(model, reviewPrompt);
+          setReviewText(rawReview);
+        }
+      } finally {
+        setStreaming(false);
       }
-      
-      setStreaming(false);
       
       /* Step 4 — Generate Adjacent Roles */
       setLoadMsg("Identifying cross-functional abilities...");
@@ -1452,7 +1455,7 @@ JSON array only:`;
                          <MarkdownText text={strengthsText} streaming={streaming} active={activeTab === 'domain'} />
                        ) : (
                          <div className="stream-loading">
-                           <div className="spin-sm"/> Waiting for generation...
+                            <div className="spin-sm"/> Gathering candidate insights...
                          </div>
                        )}
                      </div>

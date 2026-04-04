@@ -79,13 +79,38 @@ async function callGroq(prompt, apiKey) {
 }
 
 async function streamGroq(prompt, onToken, apiKey) {
-  const url = apiKey ? "https://api.groq.com/openai/v1/chat/completions" : "/api/analyze";
-  const headers = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+  // When routing through the Vercel proxy (/api/analyze), use non-streaming
+  // to avoid Edge Function SSE buffering issues. Simulate streaming with full response.
+  if (!apiKey) {
+    const r = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        stream: false
+      })
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error("Proxy API Error:", errText);
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.error && errJson.error.message) throw new Error(`Groq error: ${errJson.error.message}`);
+      } catch(e) {}
+      throw new Error(`Groq error ${r.status}`);
+    }
+    const d = await r.json();
+    const text = d.choices?.[0]?.message?.content || "";
+    // Simulate progressive streaming by sending the full text all at once
+    onToken(text);
+    return text;
+  }
 
-  const r = await fetch(url, {
+  // Personal key path: true streaming directly to Groq
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [{ role: "user", content: prompt }],
@@ -97,9 +122,7 @@ async function streamGroq(prompt, onToken, apiKey) {
     console.error("Groq Streaming API Error:", errText);
     try {
       const errJson = JSON.parse(errText);
-      if (errJson.error && errJson.error.message) {
-        throw new Error(`Groq error: ${errJson.error.message}`);
-      }
+      if (errJson.error && errJson.error.message) throw new Error(`Groq error: ${errJson.error.message}`);
     } catch(e) {}
     throw new Error(`Groq error ${r.status}`);
   }
